@@ -9,7 +9,9 @@ struct ClaudeUsageBarApp: App {
         MenuBarExtra {
             DashboardView(state: state)
         } label: {
-            MenuBarLabel(usage: state.usage)
+            MenuBarLabel(usage: state.usage,
+                         mode: state.settings.displayMode,
+                         rotateShowSession: state.rotateShowSession)
                 .onAppear { state.start() }
         }
         .menuBarExtraStyle(.window)

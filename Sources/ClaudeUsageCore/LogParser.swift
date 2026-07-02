@@ -2,20 +2,6 @@ import Foundation
 
 public enum LogParser {
     // 실제 로그는 밀리초 포함(2026-06-30T06:21:14.686Z), 없는 경우도 대비해 둘 다 시도.
-    // 실제 로그는 밀리초 포함(2026-06-30T06:21:14.686Z), 없는 경우도 대비해 둘 다 시도.
-    private static let isoFrac: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-    private static let isoPlain: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
-    private static func parseDate(_ s: String) -> Date? {
-        isoFrac.date(from: s) ?? isoPlain.date(from: s)
-    }
     private static let dayFmt: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -49,7 +35,7 @@ public enum LogParser {
                  + Double(cc5)*1.25*b + Double(cc1)*2*b
 
         let ts = obj["timestamp"] as? String ?? ""
-        guard let date = parseDate(ts) else { return nil }
+        guard let date = ISODate.parse(ts) else { return nil }
         let dayKey = dayFmt.string(from: date)
 
         let mid = (msg["id"] as? String) ?? ""

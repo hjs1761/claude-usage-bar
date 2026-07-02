@@ -47,9 +47,7 @@ public struct UsageData: Decodable, Sendable {
 public extension UsageData.Limit {
     /// resets_at 까지 남은 시간 "1d2h" / "3h04m" / "12m".
     func remaining(now: Date = Date()) -> String? {
-        guard let iso = resetsAt else { return nil }
-        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]
-        guard let d = f.date(from: iso) else { return nil }
+        guard let iso = resetsAt, let d = ISODate.parse(iso) else { return nil }
         let secs = d.timeIntervalSince(now)
         if secs <= 0 { return "0m" }
         let day = Int(secs / 86400)

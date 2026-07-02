@@ -33,6 +33,21 @@ func testUsageData(_ h: Harness) {
             h.expectEqual(Int(d.weeklyPercent ?? 0), 62, "weeklyPercent")
         } else { h.expect(false, "decode") }
     }
+    h.run("ISODate.realFormats") {
+        // 로그: 밀리초+Z / usage: 마이크로초+오프셋 / 소수부 없음
+        h.expectNotNil(ISODate.parse("2026-06-30T06:21:14.686Z"), "millis+Z")
+        h.expectNotNil(ISODate.parse("2026-07-02T11:30:00.174256+00:00"), "micros+offset")
+        h.expectNotNil(ISODate.parse("2026-07-02T15:00:00Z"), "no-fraction")
+    }
+    h.run("UsageData.remainingWithRealFormat") {
+        // resets_at가 마이크로초+오프셋이어도 남은시간이 계산돼야 함
+        let json = #"{"limits":[{"kind":"session","percent":34,"resets_at":"2026-07-02T11:30:00.174256+00:00"}]}"#
+        if let d = try? UsageData.decode(Data(json.utf8)) {
+            // 기준 시각을 리셋 12분 전으로 → "12m"
+            let now = ISODate.parse("2026-07-02T11:18:00.000000+00:00")!
+            h.expectEqual(d.limits[0].remaining(now: now) ?? "", "12m", "remaining 12m")
+        } else { h.expect(false, "decode") }
+    }
     h.run("UsageData.missingFields") {
         if let d = try? UsageData.decode(Data(#"{"limits":[]}"#.utf8)) {
             h.expectEqual(d.limits.count, 0, "empty limits")

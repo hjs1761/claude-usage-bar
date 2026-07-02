@@ -29,4 +29,7 @@ testUsageData(h)
 testLogParser(h)
 testCostRollup(h)
 
+// MARK: - Settings
+testSettings(h)
+
 h.finish()
