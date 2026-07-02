@@ -25,4 +25,8 @@ testCredentials(h)
 // MARK: - UsageData
 testUsageData(h)
 
+// MARK: - LogParser + CostRollup
+testLogParser(h)
+testCostRollup(h)
+
 h.finish()
