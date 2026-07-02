@@ -15,6 +15,7 @@ final class AppState: ObservableObject {
     private let aggregator = LogAggregator()
     private var timer: Timer?
     private var rotateTimer: Timer?
+    private var backoffUntil: Date?   // 429 등으로 네트워크 호출을 잠시 멈추는 시각
 
     func start() {
         Task { await refresh() }
@@ -41,12 +42,20 @@ final class AppState: ObservableObject {
     }
 
     func refresh() async {
-        // 로컬 비용: 로그 파싱은 무거우니(수초) 반드시 백그라운드에서. 결과만 메인에 반영.
+        // 1) 로컬 비용: 무거운 로그 파싱은 백그라운드에서. 항상 갱신(네트워크 무관).
         let agg = aggregator
-        let computed = await Task.detached(priority: .utility) { agg.compute() }.value
-        self.cost = computed
+        self.cost = await Task.detached(priority: .utility) { agg.compute() }.value
 
-        // 키체인 읽기(Process)도 동기 blocking → 백그라운드에서.
+        // 2) 429 백오프 중이면 네트워크 호출 스킵 (과도한 재호출 방지).
+        if let until = backoffUntil, Date() < until { return }
+
+        // 3) 충전 연동 절전: 배터리 + 최근 5분 내 갱신이면 네트워크 스킵.
+        if settings.chargingThrottle {
+            let onAC = await Task.detached(priority: .utility) { Self.isOnAC() }.value
+            if !onAC, let last = lastUpdated, Date().timeIntervalSince(last) < 300 { return }
+        }
+
+        // 4) 키체인 읽기(Process, blocking) → 백그라운드.
         let creds = await Task.detached(priority: .utility) {
             KeychainReader.readClaudeCodeToken()
         }.value
@@ -54,20 +63,36 @@ final class AppState: ObservableObject {
             self.statusText = "로그인 필요"
             return
         }
-        // client는 actor라 네트워크 호출은 이미 메인 밖에서 실행됨.
+
+        // 5) usage 조회 (actor → 메인 밖 실행).
         do {
             let d = try await client.fetch(token: creds.accessToken)
             self.usage = d
             self.lastUpdated = Date()
             self.isStale = false
             self.statusText = ""
+            self.backoffUntil = nil
+        } catch UsageError.http(429) {
+            // rate limit → 2분 백오프. 조용히 stale 유지.
+            self.isStale = true
+            self.backoffUntil = Date().addingTimeInterval(120)
         } catch UsageError.http(let code) where (code == 401 || code == 403) && creds.isExpired(now: Date()) {
-            // 행동 필요: 토큰 만료 → 안내 표시
             self.isStale = true
             self.statusText = "토큰 만료 — Claude Code 한 번 실행하면 갱신"
         } catch {
-            // 429·네트워크·일시 오류 등: 조용히 stale 유지(자동 재시도). 메시지 안 띄움.
-            self.isStale = true
+            self.isStale = true   // 네트워크 등 일시 오류: 조용히 재시도
         }
+    }
+
+    /// AC 전원(충전기) 연결 여부. 못 읽으면 true(안전: 갱신 유지).
+    nonisolated static func isOnAC() -> Bool {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+        p.arguments = ["-g", "ps"]
+        let pipe = Pipe(); p.standardOutput = pipe; p.standardError = Pipe()
+        do { try p.run() } catch { return true }
+        p.waitUntilExit()
+        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return out.contains("AC Power")
     }
 }
