@@ -16,4 +16,7 @@ h.run("ModelCategory.prices") {
     h.expectEqual(ModelCategory.haiku.basePrice, 1e-6, "haiku price")
 }
 
+// MARK: - ColorAdapt
+testColorAdapt(h)
+
 h.finish()
