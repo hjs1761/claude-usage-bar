@@ -19,4 +19,7 @@ h.run("ModelCategory.prices") {
 // MARK: - ColorAdapt
 testColorAdapt(h)
 
+// MARK: - Credentials
+testCredentials(h)
+
 h.finish()
