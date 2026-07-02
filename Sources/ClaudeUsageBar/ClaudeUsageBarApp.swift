@@ -10,7 +10,7 @@ struct ClaudeUsageBarApp: App {
             DashboardView(state: state)
         } label: {
             MenuBarLabel(usage: state.usage,
-                         mode: state.settings.displayMode,
+                         mode: state.displayMode,
                          rotateShowSession: state.rotateShowSession)
                 .onAppear { state.start() }
         }

@@ -3,25 +3,22 @@ import ClaudeUsageCore
 
 struct SettingsView: View {
     @ObservedObject var state: AppState
-    @State private var mode: DisplayMode
     @State private var poll: Int
     @State private var throttle: Bool
+    @State private var onAC = true
 
     init(state: AppState) {
         self.state = state
-        _mode = State(initialValue: state.settings.displayMode)
         _poll = State(initialValue: state.settings.pollSeconds)
         _throttle = State(initialValue: state.settings.chargingThrottle)
     }
 
     var body: some View {
         Form {
-            Picker("메뉴바 표시", selection: $mode) {
+            Picker("메뉴바 표시", selection: Binding(
+                get: { state.displayMode },
+                set: { state.setDisplayMode($0) })) {
                 ForEach(DisplayMode.allCases, id: \.self) { Text($0.label).tag($0) }
-            }
-            .onChange(of: mode) { _, v in
-                state.settings.displayMode = v
-                state.startRotation()
             }
 
             Picker("새로고침 주기", selection: $poll) {
@@ -35,6 +32,27 @@ struct SettingsView: View {
 
             Toggle("충전 연동 절전 (배터리일 때 완화)", isOn: $throttle)
                 .onChange(of: throttle) { _, v in state.settings.chargingThrottle = v }
+            if throttle {
+                Text(onAC
+                     ? "현재: 충전 중 · \(intervalLabel(poll))마다 갱신"
+                     : "현재: 배터리 · 약 \(Int(AppState.batteryThrottleSeconds / 60))분마다 갱신 (절전 · 로컬 비용은 계속)")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Toggle("로그인 시 자동 실행", isOn: Binding(
+                get: { LoginItem.isEnabled },
+                set: { LoginItem.set($0) }))
         }
+        .task {
+            // 설정 열려있는 동안 2초마다 전원 상태 재확인 → 충전기 꽂/뺌 거의 실시간 반영.
+            while !Task.isCancelled {
+                onAC = await Task.detached(priority: .utility) { AppState.isOnAC() }.value
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+
+    private func intervalLabel(_ seconds: Int) -> String {
+        seconds < 60 ? "\(seconds)초" : "\(seconds / 60)분"
     }
 }

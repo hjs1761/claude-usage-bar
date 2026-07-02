@@ -9,13 +9,28 @@ final class AppState: ObservableObject {
     @Published var isStale = false
     @Published var statusText = ""   // 행동 필요한 상태(로그인/토큰만료)만 채움
     @Published var rotateShowSession = true
+    @Published var displayMode: DisplayMode = .rotate   // 즉시 UI 반영용(설정과 동기화)
 
     let settings = SettingsStore()
+
+    init() {
+        displayMode = settings.displayMode   // 저장된 값 복원
+    }
+
+    /// 표시모드 변경: @Published 갱신(즉시 반영) + 영속화 + 순환 재시작.
+    func setDisplayMode(_ m: DisplayMode) {
+        displayMode = m
+        settings.displayMode = m
+        startRotation()
+    }
     private let client = UsageClient()
     private let aggregator = LogAggregator()
     private var timer: Timer?
     private var rotateTimer: Timer?
     private var backoffUntil: Date?   // 429 등으로 네트워크 호출을 잠시 멈추는 시각
+
+    /// 배터리 + 절전 시 네트워크 갱신 최소 간격(초). 로직과 설정 표시가 이 값을 공유.
+    static let batteryThrottleSeconds: TimeInterval = 300
 
     func start() {
         Task { await refresh() }
@@ -35,7 +50,7 @@ final class AppState: ObservableObject {
     /// 순환 모드일 때만 4초마다 5h⇄1W 토글 (텍스트 스왑 — 값 없으면 재렌더 없음).
     func startRotation() {
         rotateTimer?.invalidate()
-        guard settings.displayMode == .rotate else { return }
+        guard displayMode == .rotate else { return }
         rotateTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.rotateShowSession.toggle() }
         }
@@ -52,7 +67,8 @@ final class AppState: ObservableObject {
         // 3) 충전 연동 절전: 배터리 + 최근 5분 내 갱신이면 네트워크 스킵.
         if settings.chargingThrottle {
             let onAC = await Task.detached(priority: .utility) { Self.isOnAC() }.value
-            if !onAC, let last = lastUpdated, Date().timeIntervalSince(last) < 300 { return }
+            if !onAC, let last = lastUpdated,
+               Date().timeIntervalSince(last) < Self.batteryThrottleSeconds { return }
         }
 
         // 4) 키체인 읽기(Process, blocking) → 백그라운드.
