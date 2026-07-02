@@ -16,6 +16,11 @@ func testLogParser(_ h: Harness) {
             h.expect(false, "should parse assistant line")
         }
     }
+    h.run("LogParser.fractionalTimestamp") {
+        // 실제 로그는 밀리초 포함: 2026-06-30T06:21:14.686Z
+        let l = #"{"type":"assistant","timestamp":"2026-06-30T06:21:14.686Z","requestId":"r","message":{"id":"m","model":"claude-opus-4","usage":{"input_tokens":10,"output_tokens":20}}}"#
+        h.expectNotNil(LogParser.parseLine(l), "parses fractional-second timestamp")
+    }
     h.run("LogParser.skipNonAssistant") {
         h.expectNil(LogParser.parseLine(#"{"type":"user","message":{}}"#), "user skipped")
     }
