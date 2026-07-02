@@ -22,4 +22,7 @@ testColorAdapt(h)
 // MARK: - Credentials
 testCredentials(h)
 
+// MARK: - UsageData
+testUsageData(h)
+
 h.finish()
