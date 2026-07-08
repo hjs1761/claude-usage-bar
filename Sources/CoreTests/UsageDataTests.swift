@@ -1,5 +1,6 @@
 import Foundation
 import ClaudeUsageCore
+import ClaudeUsageLive
 
 func testUsageData(_ h: Harness) {
     let sample = #"""

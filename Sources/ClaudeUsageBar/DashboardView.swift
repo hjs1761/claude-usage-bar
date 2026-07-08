@@ -1,9 +1,11 @@
 import SwiftUI
 import ClaudeUsageCore
+import ClaudeUsageLive
 
 struct DashboardView: View {
     @ObservedObject var state: AppState
     @State private var showSettings = false
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -41,18 +43,47 @@ struct DashboardView: View {
                         Text(label(l)).font(.system(.callout, design: .monospaced))
                         Spacer()
                         if let p = l.percent {
-                            Text("\(Int(p.rounded()))%").foregroundStyle(color(l)).monospacedDigit()
+                            Text("\(Int(p.rounded()))%")
+                                .font(.system(.callout, design: .monospaced).weight(.semibold))
+                                .foregroundStyle(color(l))
+                                .monospacedDigit()
                         }
                         if let rem = l.remaining() {
                             Text(rem).foregroundStyle(.secondary).font(.caption)
                         }
                     }
                     ProgressView(value: min(1.0, max(0, (l.percent ?? 0) / 100))).tint(color(l))
+                    if l.kind == "session" { burnLine }   // 소진 예측(🔥) — 별도 작은 줄
                 }
             }
         } else {
             Text("표시할 한도 없음").foregroundStyle(.secondary).font(.callout)
         }
+    }
+
+    /// 세션 소진 예측 한 줄. 🔥=한도 도달 예상(강조), 그 외는 회색 보조 안내.
+    @ViewBuilder private var burnLine: some View {
+        switch state.sessionBurn {
+        case .eta(let secs):
+            Text("🔥 이 속도면 ~\(Self.hm(secs)) 후 한도 도달")
+                .font(.caption).foregroundStyle(.orange)
+        case .reached:
+            Text("🔥 한도 도달").font(.caption).foregroundStyle(.red)
+        case .stable:
+            Text("소진 속도 안정 — 리셋 전 도달 안 함")
+                .font(.caption).foregroundStyle(.secondary)
+        case .measuring:
+            Text("소진 예측 측정 중…").font(.caption).foregroundStyle(.secondary)
+        case .none:
+            EmptyView()
+        }
+    }
+
+    /// 초 → "1h20m" / "20m".
+    private static func hm(_ secs: TimeInterval) -> String {
+        let s = max(0, Int(secs))
+        let h = s / 3600, m = (s % 3600) / 60
+        return h > 0 ? "\(h)h\(String(format: "%02d", m))m" : "\(m)m"
     }
 
     @ViewBuilder private var extraSection: some View {
@@ -90,6 +121,12 @@ struct DashboardView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
+            Button {
+                openWindow(id: "usage-dashboard")
+                NSApp.activate(ignoringOtherApps: true)
+            } label: {
+                Label("상세 대시보드 열기", systemImage: "chart.bar.xaxis").frame(maxWidth: .infinity)
+            }
             if let t = state.lastUpdated {
                 Text("업데이트 \(t.formatted(date: .omitted, time: .standard))\(state.isStale ? " (캐시)" : "")")
                     .font(.caption).foregroundStyle(.secondary)

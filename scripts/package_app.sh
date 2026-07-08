@@ -6,8 +6,9 @@ cd "$(dirname "$0")/.."
 APP_NAME="Claude Usage Bar"
 BIN_NAME="ClaudeUsageBar"
 BUILD_CONFIG="${1:-debug}"   # debug(기본) | release
+VERSION="${2:-1.3}"          # 배포 버전(Info.plist 스탬프). 예: package_app.sh release 1.3
 
-echo ">> swift build ($BUILD_CONFIG)"
+echo ">> swift build ($BUILD_CONFIG) v$VERSION"
 swift build -c "$BUILD_CONFIG" --product "$BIN_NAME"
 BIN_PATH="$(swift build -c "$BUILD_CONFIG" --show-bin-path)/$BIN_NAME"
 
@@ -25,8 +26,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$APP_NAME</string>
   <key>CFBundleDisplayName</key><string>$APP_NAME</string>
   <key>CFBundleIdentifier</key><string>local.claude-usage-bar</string>
-  <key>CFBundleVersion</key><string>1</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleExecutable</key><string>$BIN_NAME</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>

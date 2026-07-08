@@ -1,5 +1,6 @@
 import Foundation
 import ClaudeUsageCore
+import ClaudeUsageLive
 
 func testCredentials(_ h: Harness) {
     h.run("Credentials.parseTokenAndExpiry") {

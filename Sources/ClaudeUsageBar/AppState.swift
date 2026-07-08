@@ -1,5 +1,6 @@
 import SwiftUI
 import ClaudeUsageCore
+import ClaudeUsageLive
 
 @MainActor
 final class AppState: ObservableObject {
@@ -10,6 +11,8 @@ final class AppState: ObservableObject {
     @Published var statusText = ""   // 행동 필요한 상태(로그인/토큰만료)만 채움
     @Published var rotateShowSession = true
     @Published var displayMode: DisplayMode = .rotate   // 즉시 UI 반영용(설정과 동기화)
+    @Published var sessionBurn: BurnState = .none       // 세션 소진 예측(측정중/안정/도달/ETA)
+    @Published var sessionBurnImminent = false          // 리셋 전 도달 예상 → 메뉴바 🔥 표시
 
     let settings = SettingsStore()
 
@@ -25,8 +28,11 @@ final class AppState: ObservableObject {
     }
     private let client = UsageClient()
     private let aggregator = LogAggregator()
+    private let burnEstimator = BurnEstimator()
+    private var burnSamples: [BurnEstimator.Sample] = []   // (systemUptime, 세션%) 표본
     private var timer: Timer?
     private var rotateTimer: Timer?
+    private var burnTimer: Timer?
     private var backoffUntil: Date?   // 429 등으로 네트워크 호출을 잠시 멈추는 시각
 
     /// 배터리 + 절전 시 네트워크 갱신 최소 간격(초). 로직과 설정 표시가 이 값을 공유.
@@ -36,15 +42,30 @@ final class AppState: ObservableObject {
         Task { await refresh() }
         restartPolling()
         startRotation()
+        startBurnSampling()
     }
 
-    /// 설정 폴링 주기로 타이머 재설정.
+    /// 설정 폴링 주기로 타이머 재설정. (.common 모드 = 메뉴/팝업 열려있어도 계속 갱신)
     func restartPolling() {
         timer?.invalidate()
         let interval = TimeInterval(settings.pollSeconds)
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
             Task { await self?.refresh() }
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+    }
+
+    /// 소진 예측 표본을 15초마다 적재(네트워크와 무관·메뉴 열려있어도 동작).
+    /// 윈도우판과 동일 취지 — 현재 로드된 세션%를 시계열로 모아 최소 90초 뒤 예측 시작.
+    func startBurnSampling() {
+        burnTimer?.invalidate()
+        let t = Timer(timeInterval: 15, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.sampleBurn() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        burnTimer = t
+        sampleBurn()   // 즉시 1개
     }
 
     /// 순환 모드일 때만 4초마다 5h⇄1W 토글 (텍스트 스왑 — 값 없으면 재렌더 없음).
@@ -89,14 +110,40 @@ final class AppState: ObservableObject {
             self.statusText = ""
             self.backoffUntil = nil
         } catch UsageError.http(429) {
-            // rate limit → 2분 백오프. 조용히 stale 유지.
+            // rate limit → 3분 백오프. 데이터 있으면 조용히 stale, 없으면(=로그아웃 오해 방지) 명시.
             self.isStale = true
-            self.backoffUntil = Date().addingTimeInterval(120)
-        } catch UsageError.http(let code) where (code == 401 || code == 403) && creds.isExpired(now: Date()) {
+            self.backoffUntil = Date().addingTimeInterval(180)
+            if self.usage == nil {
+                self.statusText = "요청 제한(429) — 사용량 API 호출이 많아 잠시 대기 중, 자동 재시도"
+            }
+        } catch UsageError.http(let code) where code == 401 || code == 403 {
             self.isStale = true
-            self.statusText = "토큰 만료 — Claude Code 한 번 실행하면 갱신"
+            self.statusText = creds.isExpired(now: Date())
+                ? "토큰 만료 — Claude Code 한 번 실행하면 갱신"
+                : "인증 오류(\(code)) — Claude Code 재로그인 필요할 수 있음"
         } catch {
             self.isStale = true   // 네트워크 등 일시 오류: 조용히 재시도
+        }
+    }
+
+    /// 15초 타이머가 호출. 현재 로드된 세션%를 표본으로 적재 → 소진 예측 갱신. (systemUptime = 단조시계)
+    /// 데이터 없으면 skip. 네트워크 성공 여부와 무관 — 캐시값이라도 시계열로 모아 예측.
+    private func sampleBurn() {
+        guard let p = usage?.sessionPercent else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        burnSamples.append(.init(t: now, percent: p))
+        burnSamples = burnEstimator.pruned(burnSamples, now: now)
+        let st = burnEstimator.estimate(samples: burnSamples, currentPercent: p)
+        sessionBurn = st
+        switch st {
+        case .reached:
+            sessionBurnImminent = true
+        case .eta(let secs):
+            // 리셋 전에 도달할 것 같으면 임박. 리셋 정보 없으면 2시간 이내만 임박으로.
+            let reset = usage?.limit(kind: "session")?.secondsRemaining()
+            sessionBurnImminent = reset.map { secs < $0 } ?? (secs < 2 * 3600)
+        default:
+            sessionBurnImminent = false
         }
     }
 

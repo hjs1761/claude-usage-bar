@@ -1,4 +1,5 @@
 import Foundation
+import ClaudeUsageCore   // ISODate
 
 public struct UsageData: Decodable, Sendable {
     public struct ModelScope: Decodable, Sendable {
@@ -45,6 +46,12 @@ public struct UsageData: Decodable, Sendable {
 }
 
 public extension UsageData.Limit {
+    /// resets_at 까지 남은 시간(초). 파싱 실패 시 nil. 음수는 0으로.
+    func secondsRemaining(now: Date = Date()) -> TimeInterval? {
+        guard let iso = resetsAt, let d = ISODate.parse(iso) else { return nil }
+        return max(0, d.timeIntervalSince(now))
+    }
+
     /// resets_at 까지 남은 시간 "1d2h" / "3h04m" / "12m".
     func remaining(now: Date = Date()) -> String? {
         guard let iso = resetsAt, let d = ISODate.parse(iso) else { return nil }

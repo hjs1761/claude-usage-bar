@@ -27,9 +27,15 @@ testUsageData(h)
 
 // MARK: - LogParser + CostRollup
 testLogParser(h)
+testProjectTagging(h)
 testCostRollup(h)
+testDailyAndProject(h)
+testAggregatorIntegration(h)
 
 // MARK: - Settings
 testSettings(h)
+
+// MARK: - BurnEstimator (소진 예측)
+testBurnEstimator(h)
 
 h.finish()

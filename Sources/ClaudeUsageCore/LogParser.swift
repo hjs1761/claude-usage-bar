@@ -8,9 +8,10 @@ public enum LogParser {
         f.locale = Locale(identifier: "en_US_POSIX")
         return f   // 로컬 타임존 사용
     }()
+    private static let cal = Calendar(identifier: .gregorian)   // hour 추출 (로컬)
 
     /// jsonl 한 줄 → UsageEntry?. assistant + usage 없으면 nil.
-    public static func parseLine(_ line: String) -> UsageEntry? {
+    public static func parseLine(_ line: String, project: String = "") -> UsageEntry? {
         guard line.contains("\"output_tokens\"") || line.contains("\"cache_creation_input_tokens\"")
         else { return nil }
         guard let data = line.data(using: .utf8),
@@ -37,11 +38,14 @@ public enum LogParser {
         let ts = obj["timestamp"] as? String ?? ""
         guard let date = ISODate.parse(ts) else { return nil }
         let dayKey = dayFmt.string(from: date)
+        let hour = cal.component(.hour, from: date)   // 로컬 시 (dayKey와 동일 타임존)
 
         let mid = (msg["id"] as? String) ?? ""
         let rid = (obj["requestId"] as? String) ?? ""
+        // id·requestId 둘 다 없으면 라인내용 해시로 유니크화 (없으면 "|"로 뭉개져 과잉 dedup=비용누락)
+        let dedup = (mid.isEmpty && rid.isEmpty) ? "anon:\(StableHash.fnv1a(line))" : "\(mid)|\(rid)"
         return UsageEntry(dayKey: dayKey, category: cat, input: i, output: o,
                           cacheWrite: cw, cacheRead: cr, cost: cost,
-                          dedupKey: "\(mid)|\(rid)")
+                          dedupKey: dedup, project: project, hour: hour)
     }
 }
