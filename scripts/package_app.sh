@@ -39,9 +39,22 @@ PLIST
 echo ">> ad-hoc 서명"
 codesign --force --deep --sign - "$APP_DIR"
 
-echo ">> 실행"
+# release는 /Applications에 설치해 거기서 실행(안정 위치 — .build 클린돼도 무관).
+# debug는 .build에서 실행(개발 편의).
+RUN_APP="$APP_DIR"
+if [ "$BUILD_CONFIG" = "release" ]; then
+  DEST="/Applications/$APP_NAME.app"
+  echo ">> /Applications 설치"
+  rm -rf "$DEST"
+  ditto "$APP_DIR" "$DEST"
+  RUN_APP="$DEST"
+fi
+
+echo ">> 실행 ($RUN_APP)"
 # 기존 인스턴스 종료 후 재실행 (중복 방지)
 pkill -x "$BIN_NAME" 2>/dev/null || true
 sleep 0.3
-open "$APP_DIR"
-echo "완료: $APP_DIR"
+open "$RUN_APP"
+echo "완료: $RUN_APP"
+# ⚠ 로그인 항목(SMAppService)은 앱 설정 토글에서만 등록됨 → 설치 위치 바꾼 뒤엔
+#    앱 설정에서 '로그인 시 실행' off→on 한 번 해줘야 새 경로로 재등록됨.
