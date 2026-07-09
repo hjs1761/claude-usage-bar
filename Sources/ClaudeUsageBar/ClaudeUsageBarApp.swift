@@ -23,6 +23,12 @@ struct ClaudeUsageBarApp: App {
             UsageDashboardWindow()
         }
         .windowResizability(.contentSize)
+
+        // 문의하기 — 별도 Window(MenuBarExtra sheet은 텍스트 포커스 시 닫힘)
+        Window("문의하기", id: "contact") {
+            ContactWindowView(state: state)
+        }
+        .windowResizability(.contentSize)
     }
 }
 

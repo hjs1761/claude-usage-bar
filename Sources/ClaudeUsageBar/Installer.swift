@@ -46,6 +46,7 @@ enum Installer {
           mv "\(backup)" "\(dest)" 2>/dev/null
         fi
         /usr/bin/xattr -dr com.apple.quarantine "\(dest)" 2>/dev/null || true
+        sleep 0.8   # 구 상태아이템이 메뉴바에서 정리될 시간(재실행 후 설정창 분리 방지)
         /usr/bin/open "\(dest)"
         """
         let sh = work.appendingPathComponent("swap.sh")

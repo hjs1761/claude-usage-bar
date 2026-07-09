@@ -6,7 +6,7 @@ struct SettingsView: View {
     @State private var poll: Int
     @State private var throttle: Bool
     @State private var onAC = true
-    @State private var showContact = false
+    @Environment(\.openWindow) private var openWindow
 
     init(state: AppState) {
         self.state = state
@@ -61,11 +61,10 @@ struct SettingsView: View {
                     Text(m).font(.caption).foregroundStyle(.red)
                 }
             }
-            Button("문의하기") { showContact = true }
+            Button("문의하기") { openWindow(id: "contact") }
                 .font(.callout)
                 .disabled(!state.contactConfigured)
         }
-        .sheet(isPresented: $showContact) { ContactSheet(state: state) }
         .task {
             // 설정 열려있는 동안 2초마다 전원 상태 재확인 → 충전기 꽂/뺌 거의 실시간 반영.
             while !Task.isCancelled {
