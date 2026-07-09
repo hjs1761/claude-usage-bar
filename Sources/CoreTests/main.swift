@@ -41,4 +41,7 @@ testBurnEstimator(h)
 // MARK: - Version
 testVersion(h)
 
+// MARK: - ReleaseParser
+testReleaseParser(h)
+
 h.finish()
