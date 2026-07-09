@@ -31,6 +31,7 @@ struct ContactWindowView: View {
                         result = ok ? "전송 완료" : "전송 실패 — 잠시 후 다시 시도"
                         if ok {
                             try? await Task.sleep(for: .seconds(1))
+                            message = ""; sender = ""; result = nil   // 다음에 열 때 빈 폼(창 인스턴스 재사용됨)
                             dismissWindow(id: "contact")
                         }
                     }
