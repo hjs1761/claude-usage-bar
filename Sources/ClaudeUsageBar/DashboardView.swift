@@ -72,7 +72,7 @@ struct DashboardView: View {
         switch state.sessionBurn {
         case .eta(let secs):
             Text("🔥 이 속도면 ~\(Self.hm(secs)) 후 한도 도달")
-                .font(.caption.weight(.semibold)).foregroundStyle(cWarn)
+                .font(.caption.weight(.semibold)).foregroundStyle(cDanger)   // 한도 도달 경고 → 빨강 계열
         case .reached:
             Text("🔥 한도 도달").font(.caption.weight(.semibold)).foregroundStyle(cDanger)
         case .stable:
