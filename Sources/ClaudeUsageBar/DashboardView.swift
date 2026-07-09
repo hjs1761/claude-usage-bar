@@ -142,7 +142,7 @@ struct DashboardView: View {
         let p = l.percent ?? 0
         if l.severity == "critical" || p >= 90 { return .red }
         if l.severity == "warning" || p >= 70 { return .orange }
-        return .primary
+        return .blue   // 정상(<70%): 진행바·퍼센트 파랑 (.primary는 진행바에서 검정으로 나옴)
     }
     private func fmtCost(_ v: Double) -> String { String(format: "%.0f", v) }
     private func fmtTok(_ n: Int) -> String {
