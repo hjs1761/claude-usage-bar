@@ -38,4 +38,7 @@ testSettings(h)
 // MARK: - BurnEstimator (소진 예측)
 testBurnEstimator(h)
 
+// MARK: - Version
+testVersion(h)
+
 h.finish()
