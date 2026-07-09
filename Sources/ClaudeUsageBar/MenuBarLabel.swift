@@ -25,9 +25,9 @@ struct MenuBarLabel: View {
     }
 
     /// 텍스트를 색 입힌 비템플릿 이미지로 렌더 (해상도 독립 → retina 선명). 값 변할 때만 호출 → 비용 미미.
-    /// SwiftUI가 메뉴바에서 이미지를 살짝 축소 표시 → 기본 Text(13pt)와 크기를 맞추려 15pt로 렌더.
+    /// 정상 상태의 시스템 Text와 크기를 맞추려 '메뉴바 기본폰트'로 렌더(과거 15pt 고정은 커 보였음).
     private static func rendered(_ s: String, color: NSColor) -> NSImage {
-        let font = NSFont.systemFont(ofSize: 15)
+        let font = NSFont.menuBarFont(ofSize: 0)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let sz = (s as NSString).size(withAttributes: attrs)
         let img = NSImage(size: NSSize(width: ceil(sz.width), height: ceil(sz.height)),
