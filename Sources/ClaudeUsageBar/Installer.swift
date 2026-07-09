@@ -6,7 +6,7 @@ enum InstallerError: Error { case badBundle, unzipFailed }
 /// 다운로드된 zip을 풀어 /Applications 번들을 교체하고 재실행한다.
 /// 실행 중 앱은 자기 자신을 덮어쓸 수 없으므로, 헬퍼 셸을 detached로 띄우고 스스로 종료한다.
 enum Installer {
-    static let appName = "Claude Usage Bar"
+    static let appName = "Agent Usage Monitor"
 
     /// zip → 임시 해제 → 격리제거 → 검증 → 헬퍼로 교체+재실행(앱 종료).
     static func applyUpdate(fromZip zip: URL) throws {
@@ -21,10 +21,12 @@ enum Installer {
         try unzip.run(); unzip.waitUntilExit()
         guard unzip.terminationStatus == 0 else { throw InstallerError.unzipFailed }
 
-        // 2) 새 .app 찾기 + 검증
-        let newApp = work.appendingPathComponent("\(appName).app")
-        let exe = newApp.appendingPathComponent("Contents/MacOS/ClaudeUsageBar")
-        guard fm.fileExists(atPath: exe.path) else { throw InstallerError.badBundle }
+        // 2) zip 안의 .app을 '이름 무관'하게 찾음(향후 리네임에도 안전) + 검증
+        let apps = (try? fm.contentsOfDirectory(at: work, includingPropertiesForKeys: nil))?
+            .filter { $0.pathExtension == "app" } ?? []
+        guard let newApp = apps.first,
+              fm.fileExists(atPath: newApp.appendingPathComponent("Contents/MacOS/ClaudeUsageBar").path)
+        else { throw InstallerError.badBundle }
 
         // 3) 격리 제거(Gatekeeper 통과)
         run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", newApp.path])

@@ -25,7 +25,7 @@ struct DashboardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Claude Max 사용량").font(.headline)
+            Text("Agent Usage Monitor").font(.headline)
             if !state.statusText.isEmpty {
                 Text(state.statusText).font(.caption).foregroundStyle(.orange)
             }

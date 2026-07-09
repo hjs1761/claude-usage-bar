@@ -3,8 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP_NAME="Claude Usage Bar"
-BIN_NAME="ClaudeUsageBar"
+APP_NAME="Agent Usage Monitor"
+BIN_NAME="ClaudeUsageBar"   # 실행파일/타깃명(내부용, 바꾸지 않음)
 BUILD_CONFIG="${1:-debug}"   # debug(기본) | release
 VERSION="${2:-1.3}"          # 배포 버전(Info.plist 스탬프). 예: package_app.sh release 1.3
 
@@ -20,6 +20,7 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$APP_DIR/Contents/Resources"
 cp "$BIN_PATH" "$APP_DIR/Contents/MacOS/$BIN_NAME"
+cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"   # 🔥 앱 아이콘
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -32,6 +33,7 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleExecutable</key><string>$BIN_NAME</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>

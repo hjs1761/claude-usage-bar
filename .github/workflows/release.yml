@@ -19,8 +19,8 @@ jobs:
           VER: ${{ steps.ver.outputs.v }}
         run: bash scripts/package_app.sh release "$VER"
       - name: Zip app
-        run: ditto -c -k --keepParent ".build/Claude Usage Bar.app" "claude-usage-mac-${GITHUB_REF_NAME}.zip"
+        run: ditto -c -k --keepParent ".build/Agent Usage Monitor.app" "agent-usage-monitor-mac-${GITHUB_REF_NAME}.zip"
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" "claude-usage-mac-${GITHUB_REF_NAME}.zip" --generate-notes --repo "${{ github.repository }}"
+        run: gh release create "${GITHUB_REF_NAME}" "agent-usage-monitor-mac-${GITHUB_REF_NAME}.zip" --generate-notes --repo "${{ github.repository }}"
