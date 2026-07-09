@@ -55,14 +55,14 @@ struct DashboardView: View {
         switch state.sessionBurn {
         case .eta(let secs):
             Text("🔥 이 속도면 ~\(Self.hm(secs)) 후 한도 도달")
-                .font(.caption).foregroundStyle(.orange)
+                .font(.caption.weight(.semibold)).foregroundStyle(.orange)
         case .reached:
-            Text("🔥 한도 도달").font(.caption).foregroundStyle(.red)
+            Text("🔥 한도 도달").font(.caption.weight(.semibold)).foregroundStyle(.red)
         case .stable:
             Text("소진 속도 안정 — 리셋 전 도달 안 함")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.primary)   // .secondary는 투명 글래스서 안 보임
         case .measuring:
-            Text("소진 예측 측정 중…").font(.caption).foregroundStyle(.secondary)
+            Text("소진 예측 측정 중…").font(.caption).foregroundStyle(.primary)
         case .none:
             EmptyView()
         }
@@ -142,7 +142,7 @@ struct DashboardView: View {
         let p = l.percent ?? 0
         if l.severity == "critical" || p >= 90 { return .red }
         if l.severity == "warning" || p >= 70 { return .orange }
-        return .blue   // 정상(<70%): 진행바·퍼센트 파랑 (.primary는 진행바에서 검정으로 나옴)
+        return .green   // 정상(<70%): 진행바·퍼센트 초록
     }
     private func fmtCost(_ v: Double) -> String { String(format: "%.0f", v) }
     private func fmtTok(_ n: Int) -> String {
