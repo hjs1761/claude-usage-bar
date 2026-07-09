@@ -180,6 +180,19 @@ final class AppState: ObservableObject {
         }
     }
 
+    var contactConfigured: Bool { !Secrets.doorayHookURL.isEmpty }
+
+    /// 문의 전송. 성공/실패를 bool로 반환(UI 토스트용).
+    func sendContact(message: String, from sender: String) async -> Bool {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        let osStr = "\(os.majorVersion).\(os.minorVersion)"
+        let ts = ISO8601DateFormatter().string(from: Date())
+        let body = Contact.payload(message: message, from: sender,
+                                   appVersion: currentVersionString, os: osStr, timestamp: ts)
+        do { try await Contact.send(hookURL: Secrets.doorayHookURL, body: body); return true }
+        catch { return false }
+    }
+
     /// AC 전원(충전기) 연결 여부. 못 읽으면 true(안전: 갱신 유지).
     nonisolated static func isOnAC() -> Bool {
         let p = Process()
