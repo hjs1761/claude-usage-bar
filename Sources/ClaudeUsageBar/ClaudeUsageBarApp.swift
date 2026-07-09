@@ -29,6 +29,7 @@ struct ClaudeUsageBarApp: App {
             ContactWindowView(state: state)
         }
         .windowResizability(.contentSize)
+        .defaultPosition(.center)
     }
 }
 

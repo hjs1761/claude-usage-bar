@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ClaudeUsageCore
 
 struct SettingsView: View {
@@ -61,7 +62,10 @@ struct SettingsView: View {
                     Text(m).font(.caption).foregroundStyle(.red)
                 }
             }
-            Button("문의하기") { openWindow(id: "contact") }
+            Button("문의하기") {
+                NSApp.activate(ignoringOtherApps: true)   // 액세서리 앱 → 새 창을 앞으로
+                openWindow(id: "contact")
+            }
                 .font(.callout)
                 .disabled(!state.contactConfigured)
         }
