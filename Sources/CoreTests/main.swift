@@ -44,4 +44,7 @@ testVersion(h)
 // MARK: - ReleaseParser
 testReleaseParser(h)
 
+// MARK: - Contact
+testContact(h)
+
 h.finish()
