@@ -16,7 +16,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        Form {
+        VStack(alignment: .leading, spacing: 12) {
             Picker("메뉴바 표시", selection: Binding(
                 get: { state.displayMode },
                 set: { state.setDisplayMode($0) })) {
