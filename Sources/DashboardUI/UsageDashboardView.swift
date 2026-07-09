@@ -149,15 +149,17 @@ public struct UsageDashboardView: View {
                         switch phase {
                         case .active(let pt):
                             guard let plot = proxy.plotFrame else { hoverPoint = nil; return }
-                            if let label: String = proxy.value(atX: pt.x - geo[plot].origin.x) {
+                            let r = geo[plot]
+                            if let label = bandLabel(atX: pt.x - r.origin.x, width: r.width) {
                                 hoverPoint = model.point(label: label)
-                            }
+                            } else { hoverPoint = nil }
                         case .ended: hoverPoint = nil
                         }
                     }
                     .gesture(SpatialTapGesture().onEnded { value in
                         guard model.canDrillDown, let plot = proxy.plotFrame else { return }
-                        if let label: String = proxy.value(atX: value.location.x - geo[plot].origin.x),
+                        let r = geo[plot]
+                        if let label = bandLabel(atX: value.location.x - r.origin.x, width: r.width),
                            let p = model.point(label: label) {
                             hoverPoint = nil; model.drill(p)
                         }
@@ -165,6 +167,15 @@ public struct UsageDashboardView: View {
             }
         }
     }
+    /// 카테고리(밴드) x축에서 x좌표 → 라벨. Charts의 proxy.value(atX:)가 문자열 스케일에서
+    /// 내부 assertion으로 크래시하므로(대시보드 즉시 종료 원인) 밴드 인덱스로 직접 매핑한다.
+    private func bandLabel(atX x: CGFloat, width: CGFloat) -> String? {
+        let labels = model.series.map(\.label)
+        guard !labels.isEmpty, width > 0, x >= 0, x <= width else { return nil }
+        let idx = min(labels.count - 1, max(0, Int(x / width * CGFloat(labels.count))))
+        return labels[idx]
+    }
+
     private func tooltip(_ p: SeriesPoint) -> some View {
         VStack(spacing: 1) {
             Text(model.pointLabel(p)).font(.caption2).foregroundStyle(.secondary)
