@@ -8,6 +8,9 @@ BIN_NAME="ClaudeUsageBar"
 BUILD_CONFIG="${1:-debug}"   # debug(기본) | release
 VERSION="${2:-1.3}"          # 배포 버전(Info.plist 스탬프). 예: package_app.sh release 1.3
 
+echo ">> gen-secrets"
+scripts/gen-secrets.sh
+
 echo ">> swift build ($BUILD_CONFIG) v$VERSION"
 swift build -c "$BUILD_CONFIG" --product "$BIN_NAME"
 BIN_PATH="$(swift build -c "$BUILD_CONFIG" --show-bin-path)/$BIN_NAME"
@@ -38,6 +41,12 @@ PLIST
 
 echo ">> ad-hoc 서명"
 codesign --force --deep --sign - "$APP_DIR"
+
+# CI=1 이면 번들만 만들고 설치/실행 안 함(GitHub Actions용).
+if [ "${CI:-}" = "1" ]; then
+  echo "완료(CI): $APP_DIR"
+  exit 0
+fi
 
 # release는 /Applications에 설치해 거기서 실행(안정 위치 — .build 클린돼도 무관).
 # debug는 .build에서 실행(개발 편의).
