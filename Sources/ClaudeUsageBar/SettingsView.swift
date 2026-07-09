@@ -42,6 +42,24 @@ struct SettingsView: View {
             Toggle("로그인 시 자동 실행", isOn: Binding(
                 get: { LoginItem.isEnabled },
                 set: { LoginItem.set($0) }))
+            Divider()
+            HStack {
+                Text("버전 \(state.currentVersionString)").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                switch state.updateStatus {
+                case .idle:
+                    Button("업데이트 확인") { Task { await state.checkForUpdate() } }.font(.callout)
+                case .checking:
+                    Text("확인 중…").font(.caption).foregroundStyle(.secondary)
+                case .available(let tag):
+                    Button("\(tag) 설치") { Task { await state.installUpdate() } }
+                        .font(.callout).buttonStyle(.borderedProminent)
+                case .downloading:
+                    Text("다운로드 중…").font(.caption).foregroundStyle(.secondary)
+                case .error(let m):
+                    Text(m).font(.caption).foregroundStyle(.red)
+                }
+            }
         }
         .task {
             // 설정 열려있는 동안 2초마다 전원 상태 재확인 → 충전기 꽂/뺌 거의 실시간 반영.
