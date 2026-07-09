@@ -8,4 +8,4 @@ cat > "$OUT" <<EOF
 // 자동 생성 — 커밋 금지(.gitignore: *.generated.swift). scripts/gen-secrets.sh 산출물.
 enum Secrets { static let doorayHookURL = "$URL" }
 EOF
-echo ">> generated $OUT (hook: ${URL:+set}${URL:-empty})"
+echo ">> generated $OUT (hook: $([ -n "$URL" ] && echo set || echo empty))"

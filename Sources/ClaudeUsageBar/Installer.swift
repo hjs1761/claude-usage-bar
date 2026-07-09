@@ -29,14 +29,22 @@ enum Installer {
         // 3) 격리 제거(Gatekeeper 통과)
         run("/usr/bin/xattr", ["-dr", "com.apple.quarantine", newApp.path])
 
-        // 4) 헬퍼 스크립트: 현재 PID 종료 대기 → 교체 → 재실행
+        // 4) 헬퍼 스크립트: 현재 PID 종료 대기 → 교체 → 재실행.
+        //    기존 번들을 먼저 백업으로 옮긴 뒤 복사 → ditto 실패 시 복원(교체 실패해도 기존 보존).
         let dest = "/Applications/\(appName).app"
         let pid = ProcessInfo.processInfo.processIdentifier
+        let backup = "/tmp/cub-backup-\(pid).app"
         let script = """
         #!/bin/bash
         while kill -0 \(pid) 2>/dev/null; do sleep 0.3; done
-        rm -rf "\(dest)"
-        /usr/bin/ditto "\(newApp.path)" "\(dest)"
+        rm -rf "\(backup)"
+        mv "\(dest)" "\(backup)" 2>/dev/null
+        if /usr/bin/ditto "\(newApp.path)" "\(dest)"; then
+          rm -rf "\(backup)"
+        else
+          rm -rf "\(dest)"
+          mv "\(backup)" "\(dest)" 2>/dev/null
+        fi
         /usr/bin/xattr -dr com.apple.quarantine "\(dest)" 2>/dev/null || true
         /usr/bin/open "\(dest)"
         """

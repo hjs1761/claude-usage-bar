@@ -38,6 +38,7 @@ final class AppState: ObservableObject {
     private var timer: Timer?
     private var rotateTimer: Timer?
     private var burnTimer: Timer?
+    private var updateTimer: Timer?   // 하루 1회 업데이트 확인
     private var backoffUntil: Date?   // 429 등으로 네트워크 호출을 잠시 멈추는 시각
 
     /// 배터리 + 절전 시 네트워크 갱신 최소 간격(초). 로직과 설정 표시가 이 값을 공유.
@@ -49,6 +50,9 @@ final class AppState: ObservableObject {
         startRotation()
         startBurnRefresh()
         Task { await checkForUpdate() }
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 86400, repeats: true) { [weak self] _ in
+            Task { await self?.checkForUpdate() }   // 하루 1회 자동 확인
+        }
     }
 
     /// 설정 폴링 주기로 타이머 재설정. (.common 모드 = 메뉴/팝업 열려있어도 계속 갱신)
