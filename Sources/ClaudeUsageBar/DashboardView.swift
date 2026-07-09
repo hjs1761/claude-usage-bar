@@ -5,6 +5,23 @@ import ClaudeUsageLive
 struct DashboardView: View {
     @ObservedObject var state: AppState
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.colorScheme) private var scheme
+
+    // 심각도 색 — 다크는 선명색 유지, 라이트는 같은 계열의 어두운 톤(형광 방지·투명글래스 가독성)
+    private var cNormal: Color { scheme == .dark ? .green  : Color(red: 0.16, green: 0.44, blue: 0.20) }
+    private var cWarn:   Color { scheme == .dark ? .orange : Color(red: 0.80, green: 0.42, blue: 0.00) }
+    private var cDanger: Color { scheme == .dark ? .red    : Color(red: 0.72, green: 0.12, blue: 0.12) }
+
+    /// 색이 확실히 먹는 커스텀 진행바(ProgressView.tint가 시스템 강조색에 먹히는 문제 회피).
+    private func bar(_ value: Double, _ color: Color) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.secondary.opacity(0.25))
+                Capsule().fill(color).frame(width: geo.size.width * min(1, max(0, value)))
+            }
+        }
+        .frame(height: 6)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -41,7 +58,7 @@ struct DashboardView: View {
                             Text(rem).foregroundStyle(.secondary).font(.caption)
                         }
                     }
-                    ProgressView(value: min(1.0, max(0, (l.percent ?? 0) / 100))).tint(color(l))
+                    bar((l.percent ?? 0) / 100, color(l))
                     if l.kind == "session" { burnLine }   // 소진 예측(🔥) — 별도 작은 줄
                 }
             }
@@ -55,9 +72,9 @@ struct DashboardView: View {
         switch state.sessionBurn {
         case .eta(let secs):
             Text("🔥 이 속도면 ~\(Self.hm(secs)) 후 한도 도달")
-                .font(.caption.weight(.semibold)).foregroundStyle(.orange)
+                .font(.caption.weight(.semibold)).foregroundStyle(cWarn)
         case .reached:
-            Text("🔥 한도 도달").font(.caption.weight(.semibold)).foregroundStyle(.red)
+            Text("🔥 한도 도달").font(.caption.weight(.semibold)).foregroundStyle(cDanger)
         case .stable:
             Text("소진 속도 안정 — 리셋 전 도달 안 함")
                 .font(.caption).foregroundStyle(.primary)   // .secondary는 투명 글래스서 안 보임
@@ -140,9 +157,9 @@ struct DashboardView: View {
     }
     private func color(_ l: UsageData.Limit) -> Color {
         let p = l.percent ?? 0
-        if l.severity == "critical" || p >= 90 { return .red }
-        if l.severity == "warning" || p >= 70 { return .orange }
-        return .green   // 정상(<70%): 진행바·퍼센트 초록
+        if l.severity == "critical" || p >= 90 { return cDanger }
+        if l.severity == "warning" || p >= 70 { return cWarn }
+        return cNormal   // 정상(<70%): 초록(다크=선명/라이트=어두운 톤)
     }
     private func fmtCost(_ v: Double) -> String { String(format: "%.0f", v) }
     private func fmtTok(_ n: Int) -> String {
