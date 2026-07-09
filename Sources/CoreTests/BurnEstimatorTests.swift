@@ -2,58 +2,48 @@ import Foundation
 import ClaudeUsageCore
 
 func testBurnEstimator(_ h: Harness) {
-    let e = BurnEstimator()   // 40m 창, 최소 3표본·90초
+    let e = BurnEstimator()              // minElapsed 5분
+    let W = BurnEstimator.sessionWindow  // 18000초(5h)
 
     h.run("Burn.none/reached") {
-        h.expectEqual(e.estimate(samples: [], currentPercent: nil), .none, "퍼센트 없음→none")
-        h.expectEqual(e.estimate(samples: [], currentPercent: 100), .reached, "100%→reached")
-        h.expectEqual(e.estimate(samples: [], currentPercent: 105), .reached, ">100%→reached")
+        h.expectEqual(e.estimate(percent: nil, secondsUntilReset: 8000, windowSeconds: W), .none, "퍼센트 없음→none")
+        h.expectEqual(e.estimate(percent: 100, secondsUntilReset: 8000, windowSeconds: W), .reached, "100%→reached")
+        h.expectEqual(e.estimate(percent: 105, secondsUntilReset: 8000, windowSeconds: W), .reached, ">100%→reached")
+        h.expectEqual(e.estimate(percent: 50, secondsUntilReset: nil, windowSeconds: W), .none, "리셋시각 없음→none")
+        h.expectEqual(e.estimate(percent: 50, secondsUntilReset: 0, windowSeconds: W), .none, "리셋 남은시간 0→none")
     }
 
     h.run("Burn.measuring") {
-        // 표본 2개 → 부족
-        let two = [BurnEstimator.Sample(t: 0, percent: 10),
-                   BurnEstimator.Sample(t: 200, percent: 20)]
-        h.expectEqual(e.estimate(samples: two, currentPercent: 20), .measuring, "표본<3→measuring")
-        // 표본 3개지만 시간폭 60초(<90) → 부족
-        let tooShort = [BurnEstimator.Sample(t: 0, percent: 10),
-                        BurnEstimator.Sample(t: 30, percent: 12),
-                        BurnEstimator.Sample(t: 60, percent: 14)]
-        h.expectEqual(e.estimate(samples: tooShort, currentPercent: 14), .measuring, "시간폭<90→measuring")
+        // 경과 = 18000 - 17800 = 200초(<300) → 이름
+        h.expectEqual(e.estimate(percent: 5, secondsUntilReset: 17800, windowSeconds: W), .measuring, "창 시작 직후→measuring")
     }
 
     h.run("Burn.stable") {
-        // 평탄(기울기 0)
-        let flat = [BurnEstimator.Sample(t: 0, percent: 40),
-                    BurnEstimator.Sample(t: 120, percent: 40),
-                    BurnEstimator.Sample(t: 240, percent: 40)]
-        h.expectEqual(e.estimate(samples: flat, currentPercent: 40), .stable, "평탄→stable")
-        // 감소(리셋 등)
-        let down = [BurnEstimator.Sample(t: 0, percent: 80),
-                    BurnEstimator.Sample(t: 120, percent: 50),
-                    BurnEstimator.Sample(t: 240, percent: 20)]
-        h.expectEqual(e.estimate(samples: down, currentPercent: 20), .stable, "감소→stable")
+        // 경과 9000, p=20 → eta=(80/20)*9000=36000 ≥ r(9000) → 리셋 전 도달 안 함
+        h.expectEqual(e.estimate(percent: 20, secondsUntilReset: 9000, windowSeconds: W), .stable, "느린 페이스→stable")
+        // p<=0
+        h.expectEqual(e.estimate(percent: 0, secondsUntilReset: 9000, windowSeconds: W), .stable, "0%→stable")
     }
 
     h.run("Burn.eta") {
-        // t=0 50% → t=3600(1h) 60% ⇒ rate=10%/h, 현재 60% ⇒ (100-60)/10 = 4h = 14400s
-        let ordered = [BurnEstimator.Sample(t: 0, percent: 50),
-                       BurnEstimator.Sample(t: 1800, percent: 55),
-                       BurnEstimator.Sample(t: 3600, percent: 60)]
-        if case let .eta(secs) = e.estimate(samples: ordered, currentPercent: 60) {
-            h.expectClose(secs, 14400, accuracy: 1, "rate 10%/h, 60%→4h")
+        // 경과 9000, p=60 → rate=60/9000, eta=(40)/(60/9000)=6000초. r=9000 → eta<r → eta(6000)
+        if case let .eta(secs) = e.estimate(percent: 60, secondsUntilReset: 9000, windowSeconds: W) {
+            h.expectClose(secs, 6000, accuracy: 1, "p60·경과9000 → 6000초")
         } else {
-            h.expect(false, "증가 추세면 eta 나와야 함")
+            h.expect(false, "리셋 전 도달 페이스면 eta 나와야 함")
+        }
+        // 실사례: p=78, r=8160(2h16m) → 경과 9840, eta≈2775초(약 46분)
+        if case let .eta(secs) = e.estimate(percent: 78, secondsUntilReset: 8160, windowSeconds: W) {
+            h.expectClose(secs, 2775.4, accuracy: 1, "p78·리셋2h16m → ~46분")
+        } else {
+            h.expect(false, "eta 기대")
         }
     }
 
-    h.run("Burn.pruned") {
-        let now: TimeInterval = 5000
-        let s = [BurnEstimator.Sample(t: 100, percent: 10),    // now-4900 → 창(2400) 밖
-                 BurnEstimator.Sample(t: 3000, percent: 30),   // now-2000 → 창 안
-                 BurnEstimator.Sample(t: 4800, percent: 40)]
-        let p = e.pruned(s, now: now)
-        h.expectEqual(p.count, 2, "40분 창 밖 표본 1개 제거")
-        h.expectEqual(p.first?.percent ?? -1, 30, "남은 첫 표본=30%")
+    h.run("Burn.동일성(계정기반)") {
+        // 같은 스냅샷이면 어느 기기서 계산해도(=같은 입력) 동일한 결과 — 로컬 히스토리 무관
+        let a = e.estimate(percent: 73.4, secondsUntilReset: 7200, windowSeconds: W)
+        let b = e.estimate(percent: 73.4, secondsUntilReset: 7200, windowSeconds: W)
+        h.expectEqual(a, b, "같은 스냅샷 → 항상 동일")
     }
 }

@@ -29,7 +29,6 @@ final class AppState: ObservableObject {
     private let client = UsageClient()
     private let aggregator = LogAggregator()
     private let burnEstimator = BurnEstimator()
-    private var burnSamples: [BurnEstimator.Sample] = []   // (systemUptime, 세션%) 표본
     private var timer: Timer?
     private var rotateTimer: Timer?
     private var burnTimer: Timer?
@@ -42,7 +41,7 @@ final class AppState: ObservableObject {
         Task { await refresh() }
         restartPolling()
         startRotation()
-        startBurnSampling()
+        startBurnRefresh()
     }
 
     /// 설정 폴링 주기로 타이머 재설정. (.common 모드 = 메뉴/팝업 열려있어도 계속 갱신)
@@ -56,16 +55,16 @@ final class AppState: ObservableObject {
         timer = t
     }
 
-    /// 소진 예측 표본을 15초마다 적재(네트워크와 무관·메뉴 열려있어도 동작).
-    /// 윈도우판과 동일 취지 — 현재 로드된 세션%를 시계열로 모아 최소 90초 뒤 예측 시작.
-    func startBurnSampling() {
+    /// 소진 예측을 30초마다 재계산(경과시간이 흐르므로 eta 갱신). .common=메뉴 열려있어도 동작.
+    /// 네트워크와 무관 — 현재 로드된 스냅샷(%, 리셋시각)만으로 계산하므로 기기 간 동일.
+    func startBurnRefresh() {
         burnTimer?.invalidate()
-        let t = Timer(timeInterval: 15, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.sampleBurn() }
+        let t = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.recomputeBurn() }
         }
         RunLoop.main.add(t, forMode: .common)
         burnTimer = t
-        sampleBurn()   // 즉시 1개
+        recomputeBurn()
     }
 
     /// 순환 모드일 때만 4초마다 5h⇄1W 토글 (텍스트 스왑 — 값 없으면 재렌더 없음).
@@ -109,6 +108,7 @@ final class AppState: ObservableObject {
             self.isStale = false
             self.statusText = ""
             self.backoffUntil = nil
+            recomputeBurn()   // 새 스냅샷 반영(즉시)
         } catch UsageError.http(429) {
             // rate limit → 3분 백오프. 데이터 있으면 조용히 stale, 없으면(=로그아웃 오해 방지) 명시.
             self.isStale = true
@@ -126,22 +126,18 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// 15초 타이머가 호출. 현재 로드된 세션%를 표본으로 적재 → 소진 예측 갱신. (systemUptime = 단조시계)
-    /// 데이터 없으면 skip. 네트워크 성공 여부와 무관 — 캐시값이라도 시계열로 모아 예측.
-    private func sampleBurn() {
-        guard let p = usage?.sessionPercent else { return }
-        let now = ProcessInfo.processInfo.systemUptime
-        burnSamples.append(.init(t: now, percent: p))
-        burnSamples = burnEstimator.pruned(burnSamples, now: now)
-        let st = burnEstimator.estimate(samples: burnSamples, currentPercent: p)
+    /// 현재 세션 스냅샷(%, 리셋까지 남은 초)만으로 소진 예측 재계산 → 같은 계정이면 3대 동일.
+    private func recomputeBurn() {
+        let l = usage?.limit(kind: "session")
+        let st = burnEstimator.estimate(
+            percent: l?.percent,
+            secondsUntilReset: l?.secondsRemaining(),
+            windowSeconds: BurnEstimator.sessionWindow)
         sessionBurn = st
+        // eta는 이미 "리셋 전 도달"만 의미 → reached/eta면 임박(메뉴바 🔥)
         switch st {
-        case .reached:
+        case .reached, .eta:
             sessionBurnImminent = true
-        case .eta(let secs):
-            // 리셋 전에 도달할 것 같으면 임박. 리셋 정보 없으면 2시간 이내만 임박으로.
-            let reset = usage?.limit(kind: "session")?.secondsRemaining()
-            sessionBurnImminent = reset.map { secs < $0 } ?? (secs < 2 * 3600)
         default:
             sessionBurnImminent = false
         }
