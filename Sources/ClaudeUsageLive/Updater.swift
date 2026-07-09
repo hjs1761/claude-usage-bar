@@ -6,7 +6,7 @@ public enum UpdaterError: Error, Sendable { case http(Int), network(String) }
 public actor Updater {
     private let repo: String
     private let session: URLSession
-    public init(repo: String = "hjs1761/claude-usage-bar", session: URLSession = .shared) {
+    public init(repo: String = "Weaverloft-AILabs/Agent-Usage-Monitor-Mac", session: URLSession = .shared) {
         self.repo = repo; self.session = session
     }
 
