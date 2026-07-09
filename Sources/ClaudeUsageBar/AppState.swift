@@ -13,6 +13,10 @@ final class AppState: ObservableObject {
     @Published var displayMode: DisplayMode = .rotate   // 즉시 UI 반영용(설정과 동기화)
     @Published var sessionBurn: BurnState = .none       // 세션 소진 예측(측정중/안정/도달/ETA)
     @Published var sessionBurnImminent = false          // 리셋 전 도달 예상 → 메뉴바 🔥 표시
+    @Published var updateStatus: UpdateStatus = .idle
+    var currentVersionString: String {
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0"
+    }
 
     let settings = SettingsStore()
 
@@ -29,6 +33,8 @@ final class AppState: ObservableObject {
     private let client = UsageClient()
     private let aggregator = LogAggregator()
     private let burnEstimator = BurnEstimator()
+    private let updater = Updater()
+    private var pendingZipURL: URL?   // available 상태에서 다운로드할 에셋 URL
     private var timer: Timer?
     private var rotateTimer: Timer?
     private var burnTimer: Timer?
@@ -42,6 +48,7 @@ final class AppState: ObservableObject {
         restartPolling()
         startRotation()
         startBurnRefresh()
+        Task { await checkForUpdate() }
     }
 
     /// 설정 폴링 주기로 타이머 재설정. (.common 모드 = 메뉴/팝업 열려있어도 계속 갱신)
@@ -143,6 +150,36 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// 최신 릴리즈 확인 → 현재 버전보다 높으면 available.
+    func checkForUpdate() async {
+        if case .downloading = updateStatus { return }
+        updateStatus = .checking
+        guard let info = await updater.fetchLatest(),
+              let latest = Version(info.tag), let cur = Version(currentVersionString) else {
+            updateStatus = .idle; return
+        }
+        if latest > cur {
+            pendingZipURL = info.zipURL
+            updateStatus = .available(tag: info.tag)
+        } else {
+            updateStatus = .idle
+        }
+    }
+
+    /// available일 때 호출: 다운로드 후 Installer로 교체+재실행(앱 종료).
+    func installUpdate() async {
+        guard let url = pendingZipURL else { return }
+        updateStatus = .downloading
+        let dest = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cub-update-\(UUID().uuidString).zip")
+        do {
+            try await updater.download(url, to: dest)
+            try Installer.applyUpdate(fromZip: dest)   // 성공 시 앱 종료됨
+        } catch {
+            updateStatus = .error("업데이트 실패: \(error.localizedDescription)")
+        }
+    }
+
     /// AC 전원(충전기) 연결 여부. 못 읽으면 true(안전: 갱신 유지).
     nonisolated static func isOnAC() -> Bool {
         let p = Process()
@@ -154,4 +191,12 @@ final class AppState: ObservableObject {
         let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
         return out.contains("AC Power")
     }
+}
+
+enum UpdateStatus: Equatable {
+    case idle                    // 확인 전/최신
+    case checking
+    case available(tag: String)  // 새 버전 있음
+    case downloading
+    case error(String)
 }
