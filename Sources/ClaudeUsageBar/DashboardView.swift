@@ -4,32 +4,21 @@ import ClaudeUsageLive
 
 struct DashboardView: View {
     @ObservedObject var state: AppState
-    @State private var showSettings = false
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(showSettings ? "설정" : "Claude Max 사용량").font(.headline)
-                Spacer()
-                if showSettings {
-                    Button("← 뒤로") { showSettings = false }.font(.callout)
-                }
-            }
-            if !state.statusText.isEmpty && !showSettings {
+            Text("Claude Max 사용량").font(.headline)
+            if !state.statusText.isEmpty {
                 Text(state.statusText).font(.caption).foregroundStyle(.orange)
             }
             Divider()
-            if showSettings {
-                SettingsView(state: state)
-            } else {
-                limitsSection
-                extraSection
-                Divider()
-                costSection
-                Divider()
-                footer
-            }
+            limitsSection
+            extraSection
+            Divider()
+            costSection
+            Divider()
+            footer
         }
         .padding(12)
         .frame(width: 340)
@@ -133,7 +122,7 @@ struct DashboardView: View {
             }
             HStack {
                 Button("새로고침") { Task { await state.refresh() } }
-                Button("설정") { showSettings = true }
+                Button("설정") { NSApp.activate(ignoringOtherApps: true); openWindow(id: "settings") }
                 Button("claude.ai") { NSWorkspace.shared.open(URL(string: "https://claude.ai")!) }
                 Spacer()
                 Button("종료") { NSApplication.shared.terminate(nil) }

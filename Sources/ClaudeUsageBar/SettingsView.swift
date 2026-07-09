@@ -69,6 +69,8 @@ struct SettingsView: View {
                 .font(.callout)
                 .disabled(!state.contactConfigured)
         }
+        .padding(16)
+        .frame(width: 340)
         .task {
             // 설정 열려있는 동안 2초마다 전원 상태 재확인 → 충전기 꽂/뺌 거의 실시간 반영.
             while !Task.isCancelled {

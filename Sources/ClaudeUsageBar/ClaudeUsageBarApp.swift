@@ -24,6 +24,13 @@ struct ClaudeUsageBarApp: App {
         }
         .windowResizability(.contentSize)
 
+        // 설정 — 별도 Window(MenuBarExtra 한 창에서 대시보드↔설정 토글 시 창이 안 줄어들어 뜨는 문제 회피)
+        Window("설정", id: "settings") {
+            SettingsView(state: state)
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
         // 문의하기 — 별도 Window(MenuBarExtra sheet은 텍스트 포커스 시 닫힘)
         Window("문의하기", id: "contact") {
             ContactWindowView(state: state)
