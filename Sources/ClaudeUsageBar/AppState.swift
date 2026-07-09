@@ -71,7 +71,7 @@ final class AppState: ObservableObject {
     func startBurnRefresh() {
         burnTimer?.invalidate()
         let t = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.recomputeBurn() }
+            MainActor.assumeIsolated { self?.recomputeBurn() }   // 타이머는 메인에서 실행 → 동기 호출(동시성 캡처 회피)
         }
         RunLoop.main.add(t, forMode: .common)
         burnTimer = t
@@ -83,7 +83,7 @@ final class AppState: ObservableObject {
         rotateTimer?.invalidate()
         guard displayMode == .rotate else { return }
         rotateTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.rotateShowSession.toggle() }
+            MainActor.assumeIsolated { self?.rotateShowSession.toggle() }   // 메인 실행 → 동기 호출
         }
     }
 
