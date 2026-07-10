@@ -44,7 +44,7 @@ struct DashboardView: View {
     @ViewBuilder private var limitsSection: some View {
         if let limits = state.usage?.limits, !limits.isEmpty {
             ForEach(Array(limits.enumerated()), id: \.offset) { _, l in
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {   // 폰트↔바 간격 살짝 넓힘
                     HStack {
                         Text(label(l)).font(.system(.callout, design: .monospaced))
                         Spacer()
@@ -59,7 +59,7 @@ struct DashboardView: View {
                         }
                     }
                     bar((l.percent ?? 0) / 100, color(l))
-                    if l.kind == "session" { burnLine }   // 소진 예측(🔥) — 별도 작은 줄
+                    if l.kind == "session" { burnLine.padding(.top, 3) }   // 소진 예측(🔥) — 세션 바와 간격 확보
                 }
             }
         } else {
@@ -131,7 +131,7 @@ struct DashboardView: View {
                 openWindow(id: "usage-dashboard")
                 NSApp.activate(ignoringOtherApps: true)
             } label: {
-                Label("상세 대시보드 열기", systemImage: "chart.bar.xaxis").frame(maxWidth: .infinity)
+                Label("상세 대시보드 열기", systemImage: "chart.bar.xaxis").font(.callout).frame(maxWidth: .infinity)   // 텍스트·아이콘 살짝 축소
             }
             if let t = state.lastUpdated {
                 Text("업데이트 \(t.formatted(date: .omitted, time: .standard))\(state.isStale ? " (캐시)" : "")")

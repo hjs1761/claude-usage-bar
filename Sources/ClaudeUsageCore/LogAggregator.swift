@@ -82,7 +82,8 @@ public struct LogAggregator: Sendable {
                   let size = attrs[.size] as? Int, mtime >= cutoff else { continue }
 
             let named = ProjectPath.name(fromRelative: rel)
-            let project = named.isEmpty ? baseName : named
+            // 로그 속 실제 cwd의 마지막 폴더명 우선(인코딩 폴더명 디코딩보다 정확: php-sub-admin·한글 등).
+            let project = Self.cwdName(path: path) ?? (named.isEmpty ? baseName : named)
             if let cached = oldIndex[path], cached.mtime == mtime, cached.size == size {
                 newIndex[path] = cached
                 allEntries.append(contentsOf: cached.entries.map { toEntry($0, project: project) })
@@ -99,6 +100,20 @@ public struct LogAggregator: Sendable {
         if let d = try? JSONEncoder().encode(newIndex) { try? d.write(to: indexPath) }
 
         return allEntries
+    }
+
+    /// 세션 로그의 `cwd` → 마지막 폴더명(프로젝트명). cwd는 보통 3~4번째 줄(첫 줄은 summary)이라
+    /// 첫 64KB에서 `"cwd":"..."` 첫 등장을 정규식으로 찾음. 가볍고 줄 위치 무관. 없으면 nil.
+    static func cwdName(path: String) -> String? {
+        guard let fh = FileHandle(forReadingAtPath: path) else { return nil }
+        defer { try? fh.close() }
+        guard let data = try? fh.read(upToCount: 65536),
+              let s = String(data: data, encoding: .utf8),
+              let re = try? NSRegularExpression(pattern: "\"cwd\"\\s*:\\s*\"([^\"]+)\""),
+              let m = re.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)),
+              let g = Range(m.range(at: 1), in: s) else { return nil }
+        let name = URL(fileURLWithPath: String(s[g])).lastPathComponent
+        return name.isEmpty ? nil : name
     }
 
     private func parseFile(_ path: String, project: String) -> [UsageEntry] {

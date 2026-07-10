@@ -18,6 +18,8 @@ public enum ProjectPath {
     ///   ""                       → "(unknown)"
     public static func friendly(_ folder: String) -> String {
         if folder.isEmpty { return "(unknown)" }
+        // 이미 사람이 읽는 이름(cwd 마지막 폴더명 등, 인코딩 경로 아님)이면 그대로.
+        if !folder.hasPrefix("-") { return folder }
         let segs = folder.split(separator: "-", omittingEmptySubsequences: true)
         return segs.last.map(String.init) ?? folder
     }
