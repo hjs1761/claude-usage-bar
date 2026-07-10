@@ -74,8 +74,8 @@ struct MenuBarLabel: View {
                 ? seg(u, "session", "5h", time: true)
                 : seg(u, "weekly_all", "1W", time: true)
         }
-        // 세션 소진 임박 시 🔥를 맨 앞에, 새 버전 있으면 끝에 •
-        return (sessionBurnImminent ? "🔥 " : "") + base + (updateAvailable ? " •" : "")
+        // 세션 소진 임박 시 🔥를 맨 앞에, 새 버전 있으면 끝에 🆙(색 이모지 → 눈에 띔)
+        return (sessionBurnImminent ? "🔥 " : "") + base + (updateAvailable ? " 🆙" : "")
     }
 
     /// "5h 34% · 12m" (time=true) 또는 "5h 34%" (time=false).
