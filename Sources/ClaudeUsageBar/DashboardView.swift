@@ -29,6 +29,7 @@ struct DashboardView: View {
             if !state.statusText.isEmpty {
                 Text(state.statusText).font(.caption).foregroundStyle(.orange)
             }
+            updateBanner
             Divider()
             limitsSection
             extraSection
@@ -39,6 +40,35 @@ struct DashboardView: View {
         }
         .padding(12)
         .frame(width: 340)
+    }
+
+    /// 새 버전 상태 배너: available=설치버튼 / downloading=진행 / error=재시도. 그 외 숨김.
+    @ViewBuilder private var updateBanner: some View {
+        switch state.updateStatus {
+        case .available(let tag):
+            HStack(spacing: 8) {
+                Text("🆙 새 버전 \(tag)").font(.callout.weight(.semibold))
+                Spacer()
+                Button("설치") { Task { await state.installUpdate() } }
+                    .controlSize(.small).buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.15)))
+        case .downloading:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("업데이트 설치 중… (완료 후 재실행)").font(.caption).foregroundStyle(.secondary)
+            }
+        case .error(let msg):
+            HStack(spacing: 8) {
+                Text("업데이트 실패").font(.caption).foregroundStyle(.red)
+                    .help(msg)
+                Spacer()
+                Button("다시 시도") { Task { await state.installUpdate() } }.controlSize(.small)
+            }
+        case .idle, .checking:
+            EmptyView()
+        }
     }
 
     @ViewBuilder private var limitsSection: some View {
