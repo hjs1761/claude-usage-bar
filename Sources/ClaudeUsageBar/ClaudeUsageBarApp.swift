@@ -13,7 +13,8 @@ struct ClaudeUsageBarApp: App {
             MenuBarLabel(usage: state.usage,
                          mode: state.displayMode,
                          rotateShowSession: state.rotateShowSession,
-                         sessionBurnImminent: state.sessionBurnImminent)
+                         sessionBurnImminent: state.sessionBurnImminent,
+                         updateAvailable: state.updateStatus.isUpdateAvailable)
                 .onAppear { state.start() }
         }
         .menuBarExtraStyle(.window)
