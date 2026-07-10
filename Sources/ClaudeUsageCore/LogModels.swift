@@ -9,18 +9,19 @@ public struct UsageEntry: Sendable, Equatable {
     public let cacheRead: Int
     public let cost: Double
     public let dedupKey: String      // "\(msgId)|\(requestId)"
-    public let project: String       // ~/.claude/projects/{folder}, 미상이면 ""
+    public let project: String       // ① cwd 기준. ~/.claude/projects/{folder}, 미상이면 ""
+    public var projectByFiles: String // ② 파일-터치 기준. sticky 적용 후 값, 미상이면 ""
     public let hour: Int             // 0~23 (로컬) — 시간대별 드릴다운용
     public var tokens: Int { input + output + cacheWrite + cacheRead }
 
     public init(dayKey: String, category: ModelCategory, input: Int, output: Int,
                 cacheWrite: Int, cacheRead: Int, cost: Double, dedupKey: String,
-                project: String = "", hour: Int = 0) {
+                project: String = "", projectByFiles: String = "", hour: Int = 0) {
         self.dayKey = dayKey; self.category = category
         self.input = input; self.output = output
         self.cacheWrite = cacheWrite; self.cacheRead = cacheRead
         self.cost = cost; self.dedupKey = dedupKey
-        self.project = project; self.hour = hour
+        self.project = project; self.projectByFiles = projectByFiles; self.hour = hour
     }
 }
 
