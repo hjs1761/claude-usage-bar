@@ -47,4 +47,7 @@ testReleaseParser(h)
 // MARK: - Contact
 testContact(h)
 
+// MARK: - FileAttribution
+testFileAttribution(h)
+
 h.finish()
