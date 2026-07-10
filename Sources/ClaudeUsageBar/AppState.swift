@@ -216,4 +216,7 @@ enum UpdateStatus: Equatable {
     case available(tag: String)  // 새 버전 있음
     case downloading
     case error(String)
+
+    /// 메뉴바 점·배너 표시용.
+    var isUpdateAvailable: Bool { if case .available = self { return true } else { return false } }
 }
