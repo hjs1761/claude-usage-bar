@@ -32,6 +32,7 @@ public struct LogAggregator: Sendable {
         var dayKey: String; var category: String
         var input: Int; var output: Int; var cacheWrite: Int; var cacheRead: Int
         var cost: Double; var dedupKey: String; var hour: Int
+        var projectByFiles: String = ""   // ② 값(내용기반이라 캐시 가능). ①은 위치서 재도출.
     }
 
     /// 월/주 요약만 (기존 개인용 앱 호환). cutoff = 월/주 시작 중 이른 것 - 1일.
@@ -102,6 +103,21 @@ public struct LogAggregator: Sendable {
         return allEntries
     }
 
+    /// ② 파일신호 없는 턴은 세션(파일) 내 직전 확정값 승계, 세션 앞부분은 cwd로 폴백.
+    /// 입력은 파일 내 등장 순서. 순수 함수(테스트 대상).
+    public static func applySticky(_ entries: [UsageEntry], fallback: String) -> [UsageEntry] {
+        var last = ""
+        return entries.map { entry in
+            var e = entry
+            if e.projectByFiles.isEmpty {
+                e.projectByFiles = last.isEmpty ? fallback : last
+            } else {
+                last = e.projectByFiles
+            }
+            return e
+        }
+    }
+
     /// 세션 로그의 `cwd` → 마지막 폴더명(프로젝트명). cwd는 보통 3~4번째 줄(첫 줄은 summary)이라
     /// 첫 64KB에서 `"cwd":"..."` 첫 등장을 정규식으로 찾음. 가볍고 줄 위치 무관. 없으면 nil.
     static func cwdName(path: String) -> String? {
@@ -118,26 +134,29 @@ public struct LogAggregator: Sendable {
 
     private func parseFile(_ path: String, project: String) -> [UsageEntry] {
         guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return [] }
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
         var out: [UsageEntry] = []
         var seen = Set<String>()
         content.enumerateLines { line, _ in
-            if let e = LogParser.parseLine(line, project: project), seen.insert(e.dedupKey).inserted {
+            if let e = LogParser.parseLine(line, project: project, home: home),
+               seen.insert(e.dedupKey).inserted {
                 out.append(e)
             }
         }
-        return out
+        // 파일(=세션) 단위 순차 sticky. fallback = ① cwd 프로젝트.
+        return Self.applySticky(out, fallback: project)
     }
 
     private func toCached(_ e: UsageEntry) -> Cached {
         Cached(dayKey: e.dayKey, category: e.category.rawValue, input: e.input,
                output: e.output, cacheWrite: e.cacheWrite, cacheRead: e.cacheRead,
-               cost: e.cost, dedupKey: e.dedupKey, hour: e.hour)
+               cost: e.cost, dedupKey: e.dedupKey, hour: e.hour, projectByFiles: e.projectByFiles)
     }
     /// 캐시된 사용량 + 현재 위치 기준 project로 엔트리 복원.
     private func toEntry(_ c: Cached, project: String) -> UsageEntry {
         UsageEntry(dayKey: c.dayKey, category: ModelCategory(rawValue: c.category) ?? .sonnet,
                    input: c.input, output: c.output, cacheWrite: c.cacheWrite,
                    cacheRead: c.cacheRead, cost: c.cost, dedupKey: c.dedupKey,
-                   project: project, hour: c.hour)
+                   project: project, projectByFiles: c.projectByFiles, hour: c.hour)
     }
 }

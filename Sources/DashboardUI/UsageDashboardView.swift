@@ -233,6 +233,11 @@ public struct UsageDashboardView: View {
                     Spacer()
                     Text("클릭 → 상세").font(.caption2).foregroundStyle(.tertiary)
                 }
+                Picker("", selection: $model.projectMode) {
+                    Text("cwd 기준").tag(DashboardModel.ProjectMode.cwd)
+                    Text("파일 기준").tag(DashboardModel.ProjectMode.files)
+                }
+                .pickerStyle(.segmented).labelsHidden()
                 if model.projectRanking.isEmpty { placeholder } else {
                     let maxCost = model.projectRanking.map(\.cost).max() ?? 1
                     VStack(spacing: 8) {

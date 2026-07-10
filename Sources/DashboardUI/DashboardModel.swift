@@ -20,6 +20,10 @@ public final class DashboardModel: ObservableObject {
     @Published private(set) var oldestDayKey: String?
     @Published private(set) var focus = Focus()
 
+    /// 프로젝트 귀속 방식(대시보드 프로젝트 카드 탭). .cwd=세션 cwd, .files=파일-터치.
+    enum ProjectMode: String, CaseIterable { case cwd, files }
+    @Published var projectMode: ProjectMode = .cwd { didSet { refreshSeries() } }
+
     /// 표시용 폴더 경로 (앱이 세팅). 푸터에 표시.
     @Published public var folderPath: String?
 
@@ -88,7 +92,7 @@ public final class DashboardModel: ObservableObject {
         modelSlices = CostRollup.totalsByModel(fe)
             .map { ModelSlice(name: $0.key.displayName, cost: $0.value.cost) }
             .filter { $0.cost > 0 }.sorted { $0.cost > $1.cost }
-        projectRanking = CostRollup.totalsByProject(fe)
+        projectRanking = CostRollup.totals(fe) { self.projectMode == .cwd ? $0.project : $0.projectByFiles }
             .map { ProjectRow(raw: $0.key, name: ProjectPath.friendly($0.key), cost: $0.value.cost) }
             .filter { $0.cost > 0 }.sorted { $0.cost > $1.cost }.prefix(12).map { $0 }
     }
@@ -223,7 +227,9 @@ public final class DashboardModel: ObservableObject {
     }
 
     func detail(for rawKey: String) -> ProjectDetail {
-        let sub = entries.filter { $0.project == rawKey }
+        let sub = entries.filter {
+            (projectMode == .cwd ? $0.project : $0.projectByFiles) == rawKey
+        }
         let now = Date()
         return ProjectDetail(
             raw: rawKey, name: ProjectPath.friendly(rawKey),
