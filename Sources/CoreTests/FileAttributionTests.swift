@@ -23,10 +23,13 @@ func testFileAttribution(_ h: Harness) {
              "input": ["file_path": "/Users/hjs/develop/네오팜운영/a.php"]],
             ["type": "tool_use", "name": "Bash",
              "input": ["command": "grep -rn foo ~/projects/ledger/app | head"]],
+            ["type": "tool_use", "name": "Grep",
+             "input": ["pattern": "TODO", "path": "/Users/hjs/projects/ledger"]],
         ]
         let paths = FileAttribution.extractPaths(fromContent: content)
         h.expect(paths.contains("/Users/hjs/develop/네오팜운영/a.php"), "Edit file_path 추출")
         h.expect(paths.contains { $0.hasPrefix("~/projects/ledger/app") }, "Bash 경로 추출")
+        h.expect(paths.contains("/Users/hjs/projects/ledger"), "Grep path 추출")
     }
 
     h.run("FileAttribution.dominant") {

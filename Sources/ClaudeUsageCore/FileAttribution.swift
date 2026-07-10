@@ -31,9 +31,12 @@ public enum FileAttribution {
     }
 
     /// Bash 명령어 문자열에서 `~/…` 및 `/Users/<user>/…` 경로 토큰을 정규식으로 추출.
+    /// 한계: 공백을 stop-character로 처리하므로 공백 포함 경로는 첫 공백에서 잘림.
+    /// 현 프로젝트 디렉토리에는 공백이 없어 latent 이슈.
+    private static let pathRe = try? NSRegularExpression(
+        pattern: #"(~|/Users/[^/\s]+)(/[^\s'"|;&)>`]+)+"#)
     static func pathsInCommand(_ cmd: String) -> [String] {
-        let pattern = #"(~|/Users/[^/\s]+)(/[^\s'"|;&)>]+)+"#
-        guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
+        guard let re = pathRe else { return [] }
         let ns = cmd as NSString
         return re.matches(in: cmd, range: NSRange(location: 0, length: ns.length))
             .map { ns.substring(with: $0.range) }
