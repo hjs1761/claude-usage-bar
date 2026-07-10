@@ -12,6 +12,7 @@ struct MenuBarLabel: View {
     let mode: DisplayMode
     let rotateShowSession: Bool   // 순환 모드에서 지금 5h를 보여줄 차례인지
     var sessionBurnImminent = false   // 세션 소진 임박 → 세션 % 옆에 🔥
+    var updateAvailable = false       // 새 버전 있음 → 라벨 끝에 • 표시
 
     var body: some View {
         switch severityLevel {
@@ -73,8 +74,8 @@ struct MenuBarLabel: View {
                 ? seg(u, "session", "5h", time: true)
                 : seg(u, "weekly_all", "1W", time: true)
         }
-        // 세션 소진 임박 시 🔥를 맨 앞에
-        return (sessionBurnImminent ? "🔥 " : "") + base
+        // 세션 소진 임박 시 🔥를 맨 앞에, 새 버전 있으면 끝에 •
+        return (sessionBurnImminent ? "🔥 " : "") + base + (updateAvailable ? " •" : "")
     }
 
     /// "5h 34% · 12m" (time=true) 또는 "5h 34%" (time=false).
