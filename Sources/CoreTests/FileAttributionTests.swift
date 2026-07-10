@@ -39,4 +39,15 @@ func testFileAttribution(_ h: Harness) {
         let tie = ["/Users/hjs/projects/ledger/a", "/Users/hjs/develop/네오팜운영/b"]
         h.expectEqual(FileAttribution.dominant(paths: tie, home: home), "ledger", "동수 → 첫 등장")
     }
+
+    h.run("LogParser.projectByFiles (raw, 턴단위)") {
+        let home2 = "/Users/hjs"
+        // usage + Edit(네오팜운영) 있는 assistant 라인
+        let line = #"{"type":"assistant","timestamp":"2026-07-10T01:00:00.000Z","message":{"model":"claude-sonnet-4","id":"m1","usage":{"input_tokens":10,"output_tokens":5},"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"/Users/hjs/develop/네오팜운영/a.php"}}]}}"#
+        let e = LogParser.parseLine(line, project: "develop", home: home2)
+        h.expectEqual(e?.projectByFiles, "네오팜운영", "턴 내 Edit → 네오팜운영")
+        // 파일 신호 없는 턴 → raw ""
+        let line2 = #"{"type":"assistant","timestamp":"2026-07-10T01:00:00.000Z","message":{"model":"claude-sonnet-4","id":"m2","usage":{"input_tokens":1,"output_tokens":1},"content":[{"type":"text","text":"hi"}]}}"#
+        h.expectEqual(LogParser.parseLine(line2, project: "develop", home: home2)?.projectByFiles, "", "파일 없음 → raw \"\"")
+    }
 }
