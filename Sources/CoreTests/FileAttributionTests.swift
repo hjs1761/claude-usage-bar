@@ -50,4 +50,16 @@ func testFileAttribution(_ h: Harness) {
         let line2 = #"{"type":"assistant","timestamp":"2026-07-10T01:00:00.000Z","message":{"model":"claude-sonnet-4","id":"m2","usage":{"input_tokens":1,"output_tokens":1},"content":[{"type":"text","text":"hi"}]}}"#
         h.expectEqual(LogParser.parseLine(line2, project: "develop", home: home2)?.projectByFiles, "", "파일 없음 → raw \"\"")
     }
+
+    h.run("LogAggregator.applySticky") {
+        func mk(_ pf: String, _ id: String) -> UsageEntry {
+            UsageEntry(dayKey: "2026-07-10", category: .sonnet, input: 1, output: 1,
+                       cacheWrite: 0, cacheRead: 0, cost: 0, dedupKey: id,
+                       project: "develop", projectByFiles: pf, hour: 0)
+        }
+        let input = [mk("", "a"), mk("ledger", "b"), mk("", "c"), mk("네오팜운영", "d"), mk("", "e")]
+        let out = LogAggregator.applySticky(input, fallback: "develop")
+        h.expect(out.map { $0.projectByFiles } == ["develop", "ledger", "ledger", "네오팜운영", "네오팜운영"],
+                 "앞부분 무신호→fallback, 이후 무신호→직전 승계")
+    }
 }
