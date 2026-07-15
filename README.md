@@ -1,6 +1,8 @@
-# Claude Usage Bar
+# Agent Usage Monitor
 
-Claude Code 사용량을 macOS 메뉴바에 표시하는 **네이티브 앱** (개인용).
+> 이전 작업명: **Claude Usage Bar**. 코드 모듈명(`ClaudeUsageBar` 등)은 그대로 유지하고, 앱 표시 이름/배포 레포만 사내 배포용으로 변경했다.
+
+Claude Code 사용량을 macOS 메뉴바에 표시하는 **네이티브 앱**. 사내 동료 배포용으로, 각 사용자가 **본인 계정의** Claude Code 토큰을 읽기 전용으로 사용한다.
 기존 SwiftBar 파이썬 플러그인을 SwiftUI `MenuBarExtra`로 완전 이식했다.
 
 ## 왜 만들었나
@@ -48,11 +50,12 @@ swift run CoreTests
   - `AppState`(조율/폴링) · `MenuBarLabel` · `DashboardView` · `SettingsView` · `LoginItem`
 - `Sources/CoreTests/` — 경량 테스트 하네스(`swift run CoreTests`)
 
-## 주의 (개인용)
+## 주의 (사내 배포)
 
-- 본인 계정의 기존 Claude Code 토큰을 재사용한다(로그인 UI 없음).
+- 각 사용자가 **본인 계정의** 기존 Claude Code 토큰을 재사용한다(로그인 UI 없음). 앱이 타인의 구독을 라우팅하거나 로그인을 대행하지 않는다.
 - `/api/oauth/usage`는 비공개 내부 엔드포인트 → Anthropic이 바꾸면 라이브 %가 깨질 수 있음
   (로컬 비용은 영향 없음).
-- **배포 금지**: Anthropic 약관상 서드파티가 claude.ai 로그인 제공/구독 자격 라우팅은 금지.
-  이 앱은 개인용·비배포·읽기전용 전제. 정직한 User-Agent 사용.
+- **배포 범위**: 사내 한정. 앱스토어·외부 공개 배포는 하지 않으며, 정직한 User-Agent를 사용한다.
+  Anthropic 약관상 서드파티의 claude.ai 로그인 제공/구독 자격 라우팅은 금지 — 이 앱은 "각자 본인 토큰·읽기전용" 전제를 유지해 거기에 해당하지 않도록 한다.
+- 동료용 설치/배포 안내: `docs/DISTRIBUTION.md`
 - 설계/계획 문서: `docs/specs/`, `docs/superpowers/plans/`
