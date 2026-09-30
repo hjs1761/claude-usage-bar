@@ -25,7 +25,11 @@ public struct LogAggregator: Sendable {
         self.indexPath = indexPath
     }
 
-    struct FileEntry: Codable { var mtime: Double; var size: Int; var entries: [Cached] }
+    /// 캐시 스키마 버전. 분류·단가 규칙이 바뀌면 올린다 → 버전이 다른(없는) 인덱스는 재파싱.
+    /// 2: Fable 분류 추가 (이전 인덱스엔 Fable이 "sonnet"·Sonnet 단가로 저장돼 있음)
+    ///    + 모델별 단가(Fable 5.1·Opus 5.5·Sonnet 5)
+    static let cacheVersion = 2
+    struct FileEntry: Codable { var mtime: Double; var size: Int; var entries: [Cached]; var version: Int? }
     // ⚠ project는 파일 "위치"에서 매번 재도출한다(캐시 저장 X). 폴더를 바꾸면 같은 파일이
     //   다른 projectsDir 기준으로 다르게 태깅되어야 하므로 캐시된 project를 신뢰하면 안 됨.
     struct Cached: Codable {
@@ -85,13 +89,15 @@ public struct LogAggregator: Sendable {
             let named = ProjectPath.name(fromRelative: rel)
             // 로그 속 실제 cwd의 마지막 폴더명 우선(인코딩 폴더명 디코딩보다 정확: php-sub-admin·한글 등).
             let project = Self.cwdName(path: path) ?? (named.isEmpty ? baseName : named)
-            if let cached = oldIndex[path], cached.mtime == mtime, cached.size == size {
+            if let cached = oldIndex[path], cached.version == Self.cacheVersion,
+               cached.mtime == mtime, cached.size == size {
                 newIndex[path] = cached
                 allEntries.append(contentsOf: cached.entries.map { toEntry($0, project: project) })
             } else {
                 let parsed = parseFile(path, project: project)
                 newIndex[path] = FileEntry(mtime: mtime, size: size,
-                                           entries: parsed.map { toCached($0) })
+                                           entries: parsed.map { toCached($0) },
+                                           version: Self.cacheVersion)
                 allEntries.append(contentsOf: parsed)
             }
         }

@@ -2,7 +2,7 @@ import SwiftUI
 import Charts
 import ClaudeUsageCore
 
-let kModelColors: [String: Color] = ["Opus": .purple, "Sonnet": .blue, "Haiku": .teal]
+let kModelColors: [String: Color] = ["Fable": .orange, "Opus": .purple, "Sonnet": .blue, "Haiku": .teal]
 
 /// 공유 사용량 대시보드. `onChangeFolder`가 nil이면 폴더 변경 UI를 숨긴다(개인용 앱).
 public struct UsageDashboardView: View {

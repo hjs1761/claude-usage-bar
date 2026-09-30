@@ -16,6 +16,25 @@ func testLogParser(_ h: Harness) {
             h.expect(false, "should parse assistant line")
         }
     }
+    h.run("LogParser.fableCost") {
+        // 같은 토큰 구성, base 10e-6. 캐시읽기만 Fable 5.1=0.025x / Fable 5=0.1x
+        let f51 = line.replacingOccurrences(of: "claude-opus-4", with: "claude-fable-5-1")
+        let f5 = line.replacingOccurrences(of: "claude-opus-4", with: "claude-fable-5")
+        // 100*1e-5 + 200*5*1e-5 + 1000*0.025*1e-5 + 50*1.25*1e-5 + 10*2*1e-5 = 0.012075
+        h.expectClose(LogParser.parseLine(f51)?.cost ?? 0, 0.012075, accuracy: 1e-9, "fable 5.1 cost")
+        // 캐시읽기 1000*0.1*1e-5 = 0.001 → 0.012825
+        h.expectClose(LogParser.parseLine(f5)?.cost ?? 0, 0.012825, accuracy: 1e-9, "fable 5 cost")
+        h.expectEqual(LogParser.parseLine(f51)?.category, .fable, "fable 5.1 category")
+    }
+    h.run("LogParser.opus55Sonnet5Cost") {
+        let o55 = line.replacingOccurrences(of: "claude-opus-4", with: "claude-opus-5-5")
+        let s5 = line.replacingOccurrences(of: "claude-opus-4", with: "claude-sonnet-5")
+        // opus 5.5 b=4e-6, 캐시읽기 0.05x: 0.0004 + 0.004 + 0.0002 + 0.00025 + 0.00008 = 0.00493
+        h.expectClose(LogParser.parseLine(o55)?.cost ?? 0, 0.00493, accuracy: 1e-9, "opus 5.5 cost")
+        h.expectEqual(LogParser.parseLine(o55)?.category, .opus, "opus 5.5 category")
+        // sonnet 5 b=2e-6: 0.0002 + 0.002 + 0.0002 + 0.000125 + 0.00004 = 0.002565
+        h.expectClose(LogParser.parseLine(s5)?.cost ?? 0, 0.002565, accuracy: 1e-9, "sonnet 5 cost")
+    }
     h.run("LogParser.fractionalTimestamp") {
         // 실제 로그는 밀리초 포함: 2026-06-30T06:21:14.686Z
         let l = #"{"type":"assistant","timestamp":"2026-06-30T06:21:14.686Z","requestId":"r","message":{"id":"m","model":"claude-opus-4","usage":{"input_tokens":10,"output_tokens":20}}}"#
@@ -127,6 +146,33 @@ func testAggregatorIntegration(_ h: Harness) {
         let data = agg.computeDashboard(now: now)
         h.expect(data.cost.byProject[""] == nil, "빈 프로젝트 키 없어야")
         h.expect(data.cost.byProject[tmp.lastPathComponent] != nil, "고른 폴더명으로 태깅")
+    }
+    h.run("LogAggregator.staleIndexReparsed") {
+        // 버전 없는 옛 인덱스엔 Fable이 "sonnet"으로 저장돼 있다 → mtime/size가 같아도 재파싱해야 함
+        let tmp = fm.temporaryDirectory
+            .appendingPathComponent("tt-stale-" + ProcessInfo.processInfo.globallyUniqueString)
+        try? fm.createDirectory(at: tmp.appendingPathComponent("p"), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tmp) }
+        let log = tmp.appendingPathComponent("p/f.jsonl")
+        try? mkLine("2026-07-15T09:00:00Z", "claude-fable-5-1", 1000, "f1")
+            .write(to: log, atomically: true, encoding: .utf8)
+        let attrs = try? fm.attributesOfItem(atPath: log.path)
+        let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let size = attrs?[.size] as? Int ?? 0
+        let old: [String: Any] = [log.path: ["mtime": mtime, "size": size, "entries": [[
+            "dayKey": "2026-07-15", "category": "sonnet", "input": 1000, "output": 0,
+            "cacheWrite": 0, "cacheRead": 0, "cost": 0.003, "dedupKey": "f1|f1", "hour": 18,
+            "projectByFiles": ""]]]]
+        let idx = tmp.appendingPathComponent("i.json")
+        try? JSONSerialization.data(withJSONObject: old).write(to: idx)
+
+        let agg = LogAggregator(projectsDir: tmp, indexPath: idx)
+        var dc = DateComponents(); dc.year = 2026; dc.month = 7; dc.day = 15; dc.hour = 12
+        let now = Calendar(identifier: .gregorian).date(from: dc)!
+        let data = agg.computeDashboard(now: now)
+        h.expect(data.cost.byModel[.sonnet] == nil, "옛 인덱스의 sonnet 분류를 믿지 않음")
+        // fable base 1e-5: 1000*1e-5 = 0.01
+        h.expectClose(data.cost.byModel[.fable]?.cost ?? 0, 0.01, accuracy: 1e-9, "재파싱 → fable")
     }
 }
 
