@@ -30,9 +30,11 @@ public enum LogParser {
         let cw = usage["cache_creation_input_tokens"] as? Int ?? (cc5 + cc1)
         if cc5 == 0 && cc1 == 0 && cw > 0 { cc1 = cw }   // 분해 없으면 1h로 간주
 
-        let cat = ModelCategory.from(model: msg["model"] as? String)
-        let b = cat.basePrice
-        let cost = Double(i)*b + Double(o)*5*b + Double(cr)*0.1*b
+        let model = msg["model"] as? String
+        let cat = ModelCategory.from(model: model)
+        let p = ModelCategory.price(model: model)
+        let b = p.base
+        let cost = Double(i)*b + Double(o)*5*b + Double(cr)*p.cacheRead*b
                  + Double(cc5)*1.25*b + Double(cc1)*2*b
 
         let ts = obj["timestamp"] as? String ?? ""
